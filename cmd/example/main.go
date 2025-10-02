@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kyousukesan/combie-go/combine"
+	combine "github.com/kyousukesan/combie-go"
 )
 
 type Item struct {
