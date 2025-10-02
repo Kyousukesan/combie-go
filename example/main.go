@@ -34,17 +34,17 @@ func (i *Item) SetAvg(v any) {
 }
 
 func main() {
-    // Build ctx via CtxBuilder
-    b := combine.NewCtxBuilder().
-        Set("factor", 1.5).
-        Set("env", "prod").
-        Set("region", "ap-northeast-1").
-        Set("trace", true)
+	// Build ctx via CtxBuilder
+	b := combine.NewCtxBuilder().
+		Set("factor", 1.5).
+		Set("env", "prod").
+		Set("region", "ap-northeast-1").
+		Set("trace", true)
 
-    c := combine.NewCombine(
-        combine.WithConcurrent(),
-        combine.WithCtxBuilder(b),
-    )
+	c := combine.NewCombine(
+		combine.WithConcurrent(),
+		combine.WithCtxBuilder(b),
+	)
 
 	// Aggregate handler: uppercase -> returns map keyed by index
 	c.Register("uppercase", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {

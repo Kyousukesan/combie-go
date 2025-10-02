@@ -175,4 +175,77 @@ func TestRegisterWithNamedFunc(t *testing.T) {
 	}
 }
 
+func TestCtxBuilderApplied(t *testing.T) {
+    // build ctx via builder
+    b := NewCtxBuilder().Set("factor", 2.0).Set("env", "test-env")
+    c := NewCombine(WithCtxBuilder(b))
+
+    type obj struct {
+        Name string `combine:"ctx_env,Name"`
+    }
+
+    // handler that writes ctx env into Name
+    c.Register("ctx_env", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
+        out := make(map[any]any, len(values))
+        env, _ := ctx["env"].(string)
+        for i := range values {
+            out[i] = env
+        }
+        return out
+    }))
+
+    items := []any{&obj{}, &obj{}}
+    if err := c.Process(items); err != nil {
+        t.Fatalf("process error: %v", err)
+    }
+    for i, it := range items {
+        if it.(*obj).Name != "test-env" {
+            t.Fatalf("ctx not applied at %d: %+v", i, it)
+        }
+    }
+}
+
+func TestCtxBuilderImmutabilityAndOverride(t *testing.T) {
+    b := NewCtxBuilder().Set("env", "initial")
+    c := NewCombine(WithCtxBuilder(b), WithCtxSet("region", "ap"))
+
+    // mutate builder after combine constructed
+    b.Set("env", "changed")
+
+    type obj struct {
+        Env    string `combine:"ctx_env,Env"`
+        Region string `combine:"ctx_region,Region"`
+    }
+
+    c.Register("ctx_env", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
+        out := make(map[any]any, len(values))
+        env, _ := ctx["env"].(string)
+        for i := range values {
+            out[i] = env
+        }
+        return out
+    }))
+    c.Register("ctx_region", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
+        out := make(map[any]any, len(values))
+        region, _ := ctx["region"].(string)
+        for i := range values {
+            out[i] = region
+        }
+        return out
+    }))
+
+    items := []any{&obj{}, &obj{}}
+    if err := c.Process(items); err != nil {
+        t.Fatalf("process error: %v", err)
+    }
+    // env should remain "initial" (builder mutation should not affect existing combine)
+    if items[0].(*obj).Env != "initial" || items[1].(*obj).Env != "initial" {
+        t.Fatalf("env mutated via builder: %+v", items)
+    }
+    // region set via WithCtxSet should be visible
+    if items[0].(*obj).Region != "ap" || items[1].(*obj).Region != "ap" {
+        t.Fatalf("region not applied: %+v", items)
+    }
+}
+
 
