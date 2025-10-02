@@ -26,26 +26,26 @@ func WithCtx(ctx map[string]any) Option {
 
 // WithCtxSet sets a single key/value into component context; can be combined multiple times in NewCombine opts.
 func WithCtxSet(key string, value any) Option {
-    return func(c *Combine) {
-        if c.combineCtx == nil {
-            c.combineCtx = make(map[string]any)
-        }
-        c.combineCtx[key] = value
-    }
+	return func(c *Combine) {
+		if c.combineCtx == nil {
+			c.combineCtx = make(map[string]any)
+		}
+		c.combineCtx[key] = value
+	}
 }
 
 // WithCtxPairs sets multiple key/value pairs into component context.
 // Usage: WithCtxPairs("k1", v1, "k2", v2, ...)
 func WithCtxPairs(pairs ...any) Option {
-    return func(c *Combine) {
-        if c.combineCtx == nil {
-            c.combineCtx = make(map[string]any)
-        }
-        for i := 0; i+1 < len(pairs); i += 2 {
-            k, _ := pairs[i].(string)
-            c.combineCtx[k] = pairs[i+1]
-        }
-    }
+	return func(c *Combine) {
+		if c.combineCtx == nil {
+			c.combineCtx = make(map[string]any)
+		}
+		for i := 0; i+1 < len(pairs); i += 2 {
+			k, _ := pairs[i].(string)
+			c.combineCtx[k] = pairs[i+1]
+		}
+	}
 }
 
 // AggregateHandler consumes a slice of values and component ctx, and returns a map
@@ -362,5 +362,3 @@ func callOutputFunc(item reflect.Value, method string, arg any) error {
 	m.Call([]reflect.Value{in})
 	return nil
 }
-
-

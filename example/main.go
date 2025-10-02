@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "strings"
 
-	combine "github.com/kyousukesan/combie-go"
+    combine "github.com/kyousukesan/combie-go"
 )
 
 type Item struct {
@@ -34,10 +34,12 @@ func (i *Item) SetAvg(v any) {
 }
 
 func main() {
-	c := combine.NewCombine(
-		combine.WithConcurrent(),
-		combine.WithCtx(map[string]any{"factor": 1.5, "env": "prod"}),
-	)
+    c := combine.NewCombine(
+        combine.WithConcurrent(),
+        combine.WithCtx(map[string]any{"factor": 1.5}),
+        combine.WithCtxSet("env", "prod"),
+        combine.WithCtxPairs("region", "ap-northeast-1", "trace", true),
+    )
 
 	// Aggregate handler: uppercase -> returns map keyed by index
 	c.Register("uppercase", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {
@@ -69,18 +71,8 @@ func main() {
 		return out
 	}))
 
-	// Aggregate handler: avg_score -> returns map keyed by index
-	c.Register("avg_score", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {
-		out := make(map[any]any, len(values))
-		for idx := range values {
-			if idx == 0 {
-				out[idx] = float64(20)
-			} else {
-				out[idx] = float64(100)
-			}
-		}
-		return out
-	}))
+    // Aggregate handler: avg_score -> register a standalone function via HandleFunc adapter
+    c.Register("avg_score", combine.HandleFunc(AvgScoreAgg))
 
 	items := []any{
 		&Item{ID: 1, Name: "alice", Score: 90},
@@ -92,4 +84,17 @@ func main() {
 	}
 
 	fmt.Printf("%+v\n", items)
+}
+
+// AvgScoreAgg is a reusable aggregate function to be registered via HandleFunc
+func AvgScoreAgg(values []any, ctx map[string]any) map[any]any {
+    out := make(map[any]any, len(values))
+    for idx := range values {
+        if idx == 0 {
+            out[idx] = float64(20)
+        } else {
+            out[idx] = float64(100)
+        }
+    }
+    return out
 }
