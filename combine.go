@@ -24,6 +24,47 @@ func WithCtx(ctx map[string]any) Option {
 	}
 }
 
+// CtxBuilder builds context key/value pairs in a chainable way.
+type CtxBuilder struct {
+    pairs map[string]any
+}
+
+// NewCtxBuilder creates a new builder.
+func NewCtxBuilder() *CtxBuilder { return &CtxBuilder{pairs: make(map[string]any)} }
+
+// Set sets one key/value and returns the builder.
+func (b *CtxBuilder) Set(key string, value any) *CtxBuilder {
+    if b.pairs == nil {
+        b.pairs = make(map[string]any)
+    }
+    b.pairs[key] = value
+    return b
+}
+
+// Build returns the built map (copy) for safety.
+func (b *CtxBuilder) Build() map[string]any {
+    out := make(map[string]any, len(b.pairs))
+    for k, v := range b.pairs {
+        out[k] = v
+    }
+    return out
+}
+
+// WithCtxBuilder applies all key/values from a CtxBuilder.
+func WithCtxBuilder(b *CtxBuilder) Option {
+    return func(c *Combine) {
+        if b == nil {
+            return
+        }
+        if c.combineCtx == nil {
+            c.combineCtx = make(map[string]any)
+        }
+        for k, v := range b.pairs {
+            c.combineCtx[k] = v
+        }
+    }
+}
+
 // WithCtxSet sets a single key/value into component context; can be combined multiple times in NewCombine opts.
 func WithCtxSet(key string, value any) Option {
 	return func(c *Combine) {

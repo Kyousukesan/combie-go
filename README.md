@@ -51,11 +51,16 @@ func (i *Item) SetAvg(v any) {
 }
 
 func main() {
+    // CtxBuilder で複数の k-v を組み立てて一括適用
+    b := combine.NewCtxBuilder().
+        Set("factor", 1.5).
+        Set("env", "prod").
+        Set("region", "ap-northeast-1").
+        Set("trace", true)
+
     c := combine.NewCombine(
         combine.WithConcurrent(),
-        combine.WithCtx(map[string]any{"factor": 1.5}),
-        combine.WithCtxSet("env", "prod"),
-        combine.WithCtxPairs("region", "ap-northeast-1", "trace", true),
+        combine.WithCtxBuilder(b),
     )
 
     // 集約処理：大文字化（インデックスをキーにした結果を返す）
