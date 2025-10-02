@@ -1,3 +1,3 @@
-module github.com/zhoujiweicode/combine
+module github.com/kyousukesan/combine-go
 
-go 1.24.3
+go 1.22.2
