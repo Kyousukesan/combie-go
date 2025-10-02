@@ -174,3 +174,5 @@ func TestRegisterWithNamedFunc(t *testing.T) {
 		}
 	}
 }
+
+

@@ -125,6 +125,6 @@ func (c *Combine) Process(items []any) error
 ### サンプルとテストの実行
 
 ```bash
-go run ./cmd/example
+go run ./example
 go test ./...
 ```
