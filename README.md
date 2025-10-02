@@ -53,7 +53,9 @@ func (i *Item) SetAvg(v any) {
 func main() {
     c := combine.NewCombine(
         combine.WithConcurrent(),
-        combine.WithCtx(map[string]any{"factor": 1.5, "env": "prod"}),
+        combine.WithCtx(map[string]any{"factor": 1.5}),
+        combine.WithCtxSet("env", "prod"),
+        combine.WithCtxPairs("region", "ap-northeast-1", "trace", true),
     )
 
     // 集約処理：大文字化（インデックスをキーにした結果を返す）
