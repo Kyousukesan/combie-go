@@ -27,7 +27,18 @@ func WithCtx(ctx map[string]any) Option {
 // AggregateHandler consumes a slice of values and component ctx, and returns a map
 // keyed by original item key to aggregated value.
 // The key can be original struct pointer, or a chosen identity extracted via field value.
-type AggregateHandler func(values []any, combineCtx map[string]any) map[any]any
+type AggregateHandler interface {
+	Handle(values []any, combineCtx map[string]any) map[any]any
+}
+
+// HandleFunc is an adapter to allow the use of ordinary functions as AggregateHandler.
+// Example: c.Register("foo", HandleFunc(func(values []any, ctx map[string]any) map[any]any { ... }))
+type HandleFunc func(values []any, combineCtx map[string]any) map[any]any
+
+// Handle calls f(values, combineCtx).
+func (f HandleFunc) Handle(values []any, combineCtx map[string]any) map[any]any {
+	return f(values, combineCtx)
+}
 
 // Combine is the component root.
 type Combine struct {
@@ -56,8 +67,8 @@ func New(opts ...Option) *Combine {
 // NewCombine is kept to match the design doc naming.
 func NewCombine(opts ...Option) *Combine { return New(opts...) }
 
-// Register registers an aggregate handler. Only the adapter signature is allowed:
-// func([]any, map[string]any) map[any]any
+// Register registers an aggregate handler via the interface.
+// Use HandleFunc to adapt plain functions.
 func (c *Combine) Register(name string, fn AggregateHandler) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -94,14 +105,10 @@ func parseTag(tag string) (tagSpec, bool) {
 	return spec, true
 }
 
-// Process scans slice of structs and applies handlers based on `combine` tag.
-// items must be a slice of struct or slice of pointer-to-struct.
-func (c *Combine) Process(items interface{}) error {
-	rv := reflect.ValueOf(items)
-	if rv.Kind() != reflect.Slice {
-		return fmt.Errorf("items must be slice")
-	}
-	n := rv.Len()
+// Process scans elements in items and applies handlers based on `combine` tag.
+// items must be a slice of struct instances or pointers to structs, typed as []any.
+func (c *Combine) Process(items []any) error {
+	n := len(items)
 	if n == 0 {
 		return nil
 	}
@@ -119,7 +126,7 @@ func (c *Combine) Process(items interface{}) error {
 
 	// First pass: traverse all items and fields, collect aggregate inputs.
 	for i := 0; i < n; i++ {
-		elem := rv.Index(i)
+		elem := reflect.ValueOf(items[i])
 		// support []*T and []T
 		var structVal reflect.Value
 		if elem.Kind() == reflect.Ptr {
@@ -189,7 +196,7 @@ func (c *Combine) Process(items interface{}) error {
 		if handler == nil {
 			return fmt.Errorf("aggregate handler %s not found", task.name)
 		}
-		result := handler(task.values, ctx)
+		result := handler.Handle(task.values, ctx)
 
 		// Write back results by matching order to refs. We assume handler keyed by original value or position.
 		// Design doc leaves keying flexible; we will match by position index if numeric keys 0..n-1 are present,

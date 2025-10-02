@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-    "github.com/kyousukesan/combine-go/combine"
+	"github.com/kyousukesan/combie-go/combine"
 )
 
 type Item struct {
@@ -40,16 +40,16 @@ func main() {
 	)
 
 	// Aggregate handler: uppercase -> returns map keyed by index
-	c.Register("uppercase", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("uppercase", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for idx, v := range values {
 			out[idx] = strings.ToUpper(fmt.Sprint(v))
 		}
 		return out
-	})
+	}))
 
 	// Aggregate handler: combineItem -> returns map keyed by index
-	c.Register("combineItem", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("combineItem", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		// pretend DB query by ID in values; here fabricate
 		for idx, v := range values {
@@ -67,10 +67,10 @@ func main() {
 			}
 		}
 		return out
-	})
+	}))
 
 	// Aggregate handler: avg_score -> returns map keyed by index
-	c.Register("avg_score", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("avg_score", combine.HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for idx := range values {
 			if idx == 0 {
@@ -80,18 +80,14 @@ func main() {
 			}
 		}
 		return out
-	})
+	}))
 
-	items := []Item{
-		{ID: 1, Name: "alice", Score: 90},
-		{ID: 2, Name: "bob", Score: 80},
+	items := []any{
+		&Item{ID: 1, Name: "alice", Score: 90},
+		&Item{ID: 2, Name: "bob", Score: 80},
 	}
 
-	// must pass pointer slice to allow field setting by reflection for non-exported receivers
-	// but here fields are exported, so []Item works; using []*Item ensures method calls on pointers
-	ptrs := []*Item{&items[0], &items[1]}
-
-	if err := c.Process(ptrs); err != nil {
+	if err := c.Process(items); err != nil {
 		panic(err)
 	}
 

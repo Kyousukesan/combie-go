@@ -30,15 +30,15 @@ func (t *testItem) SetAvg(v any) {
 func TestSingleAndAggregateHandlers(t *testing.T) {
 	c := NewCombine(WithCtx(map[string]any{"env": "test"}))
 
-	c.Register("uppercase", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("uppercase", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for idx, v := range values {
 			out[idx] = strings.ToUpper(fmt.Sprint(v))
 		}
 		return out
-	})
+	}))
 
-	c.Register("combineItem", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("combineItem", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for idx, v := range values {
 			id, _ := v.(int)
@@ -49,9 +49,9 @@ func TestSingleAndAggregateHandlers(t *testing.T) {
 			}
 		}
 		return out
-	})
+	}))
 
-	c.Register("avg_score", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("avg_score", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for idx := range values {
 			if idx == 0 {
@@ -61,36 +61,36 @@ func TestSingleAndAggregateHandlers(t *testing.T) {
 			}
 		}
 		return out
-	})
+	}))
 
-	items := []*testItem{
-		{ID: 1, Name: "alice", Score: 90},
-		{ID: 2, Name: "bob", Score: 80},
+	items := []any{
+		&testItem{ID: 1, Name: "alice", Score: 90},
+		&testItem{ID: 2, Name: "bob", Score: 80},
 	}
 
 	if err := c.Process(items); err != nil {
 		t.Fatalf("process error: %v", err)
 	}
 
-	if items[0].Name != "ALICE" || items[1].Name != "BOB" {
+	if items[0].(*testItem).Name != "ALICE" || items[1].(*testItem).Name != "BOB" {
 		t.Fatalf("uppercase failed: %+v", items)
 	}
 
-	if got := items[0].AvgScore; got != 20 {
+	if got := items[0].(*testItem).AvgScore; got != 20 {
 		t.Fatalf("avg score[0]=%v want 20", got)
 	}
-	if got := items[1].AvgScore; got != 100 {
+	if got := items[1].(*testItem).AvgScore; got != 100 {
 		t.Fatalf("avg score[1]=%v want 100", got)
 	}
 
 	want0 := []string{"aaa", "bbb", "ccc"}
-	got0 := append([]string(nil), items[0].Items...)
+	got0 := append([]string(nil), items[0].(*testItem).Items...)
 	sort.Strings(got0)
 	if !reflect.DeepEqual(got0, want0) {
-		t.Fatalf("items[0].Items=%v want %v", items[0].Items, want0)
+		t.Fatalf("items[0].Items=%v want %v", items[0].(*testItem).Items, want0)
 	}
-	if !reflect.DeepEqual(items[1].Items, []string{"sss"}) {
-		t.Fatalf("items[1].Items=%v want [sss]", items[1].Items)
+	if !reflect.DeepEqual(items[1].(*testItem).Items, []string{"sss"}) {
+		t.Fatalf("items[1].Items=%v want [sss]", items[1].(*testItem).Items)
 	}
 }
 
@@ -100,11 +100,9 @@ func TestFnOutputMethodMissing(t *testing.T) {
 	}
 
 	c := NewCombine()
-	c.Register("avg_score", func(values []any, ctx map[string]any) map[any]any {
-		return map[any]any{0: 1}
-	})
+	c.Register("avg_score", HandleFunc(func(values []any, ctx map[string]any) map[any]any { return map[any]any{0: 1} }))
 
-	items := []*bad{{Score: 1}}
+	items := []any{&bad{Score: 1}}
 	if err := c.Process(items); err == nil {
 		t.Fatalf("expected error when calling missing method")
 	}
@@ -119,28 +117,29 @@ func TestConcurrentAggregates(t *testing.T) {
 		B int `combine:"agg2,B"`
 	}
 
-	c.Register("agg1", func(values []any, ctx map[string]any) map[any]any {
+	c.Register("agg1", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for i := range values {
 			out[i] = 1
 		}
 		return out
-	})
-	c.Register("agg2", func(values []any, ctx map[string]any) map[any]any {
+	}))
+	c.Register("agg2", HandleFunc(func(values []any, ctx map[string]any) map[any]any {
 		out := make(map[any]any, len(values))
 		for i := range values {
 			out[i] = 2
 		}
 		return out
-	})
+	}))
 
-	items := []*obj{{}, {}, {}}
+	items := []any{&obj{}, &obj{}, &obj{}}
 	if err := c.Process(items); err != nil {
 		t.Fatalf("process error: %v", err)
 	}
 	for i, it := range items {
-		if it.A != 1 || it.B != 2 {
-			t.Fatalf("concurrency write wrong at %d: %+v", i, it)
+		o := it.(*obj)
+		if o.A != 1 || o.B != 2 {
+			t.Fatalf("concurrency write wrong at %d: %+v", i, o)
 		}
 	}
 }
@@ -162,15 +161,16 @@ func TestRegisterWithNamedFunc(t *testing.T) {
 	}
 
 	// register using named function to allow reuse
-	c.Register("agg2", AggFunc1)
+	c.Register("agg2", HandleFunc(AggFunc1))
 
-	items := []*obj{{}, {}, {}}
+	items := []any{&obj{}, &obj{}, &obj{}}
 	if err := c.Process(items); err != nil {
 		t.Fatalf("process error: %v", err)
 	}
 	for i, it := range items {
-		if it.B != 7 {
-			t.Fatalf("named func write wrong at %d: %+v", i, it)
+		o := it.(*obj)
+		if o.B != 7 {
+			t.Fatalf("named func write wrong at %d: %+v", i, o)
 		}
 	}
 }
